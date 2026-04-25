@@ -11,12 +11,12 @@ void handleClient(int clientSocket) {
     unsigned char iv[EVP_MAX_IV_LENGTH];
     int bytesRead;
 
-    // TODO: read the iv from the client
-    
+    // Read the iv from the client
+    recv(clientSocket, iv, EVP_MAX_IV_LENGTH, 0);
 
     unsigned char encryptedBuffer[BUFFER_SIZE];
-    // TODO: read the encrypted message from the client and store it in bytesRead
-   
+    // Read the encrypted message from the client and store it in bytesRead
+    bytesRead = recv(clientSocket, encryptedBuffer, BUFFER_SIZE, 0);
 
     unsigned char decryptedBuffer[BUFFER_SIZE];
     int decryptedLen;
@@ -33,18 +33,22 @@ void handleClient(int clientSocket) {
     int codes;
     int secret_size;
 
-    // TODO: Call DH_get_2048_256() to generate DH parameters
-    // You should use that method, so the server and client will use the same p and g
-    // and store it in privkey. Then call handleErrors()
-    
+    // Call DH_get_2048_256() to generate DH parameters
+    // The server and client will use the same p and g
+    // and store it in privkey. 
+    privkey = DH_get_2048_256();
+    if (privkey == NULL) {
+        handleErrors();
+    }
 
-    // TODO: Write a method to generate the public and private key pair
-    
+    // A method to generate the public and private key pair
+    if (DH_generate_key(privkey) != 1) {
+        handleErrors();
+    }
     
     const BIGNUM *pubkey = NULL;
-    // TODO: Write a method to extract the public key from privkey and store it in pubkey
-    // HINT: DH_get0_pub_key()
-    
+    // Extract the public key from privkey and store it in pubkey
+    DH_get0_key(privkey, &pubkey, NULL);
 
     if (pubkey == NULL) {
         printf("Error: DH public key is NULL\n");
@@ -78,10 +82,11 @@ void handleClient(int clientSocket) {
 
     encryptWithPSK(pubkey_bin, pubkey_len, (unsigned char*)pre_shared.c_str(), ciphertext, IV, ciphertext_len);
     
-    // TODO: send the iv to the client
+    // Send the iv to the client
+    send(clientSocket, IV, EVP_MAX_IV_LENGTH, 0);
     
-    // TODO: send the ciphertext to the client
-    
+    // Send the ciphertext to the client
+    send(clientSocket, ciphertext, ciphertext_len, 0);
     
     std::cout << "Encrypted public key sent to client." << std::endl;
 
@@ -89,9 +94,12 @@ void handleClient(int clientSocket) {
     BIGNUM *clientPubKey = BN_bin2bn(decryptedBuffer, decryptedLen, NULL);
     unsigned char *sharedSecret = (unsigned char *)OPENSSL_malloc(DH_size(privkey));
 
-    // TODO: compute the shared secret and store it in secret_size
-    // HINT: using DH_compute_key()
-    
+    // Compute the shared secret and store it in secret_size
+    secret_size = DH_compute_key(sharedSecret, clientPubKey, privkey);
+    if (secret_size <= 0) {
+        printf("Error: Failed to compute shared secret\n");
+        handleErrors();
+    }
 
     std::cout << "Shared Secret (Hex): ";
     for (int i = 0; i < secret_size; i++) {
