@@ -115,7 +115,7 @@ int main() {
     unsigned char *sharedSecret = (unsigned char *)OPENSSL_malloc(DH_size(privkey));
 
     // Compute the shared secret and store it in secret_size
-    int secret_size = DH_compute_key(sharedSecret, serverPubKey, privkey);
+    secret_size = DH_compute_key(sharedSecret, serverPubKey, privkey);
     if (secret_size <= 0) {
         printf("Error: Failed to compute shared secret\n");
         handleErrors();
